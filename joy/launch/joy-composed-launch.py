@@ -28,14 +28,13 @@
 """Launch the joy node in a composable container with default configuration."""
 
 import os
+import pathlib
 
 import ament_index_python.packages
-
+import yaml
 from launch import LaunchDescription
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
-
-import yaml
 
 
 def generate_launch_description():
@@ -43,7 +42,7 @@ def generate_launch_description():
         ament_index_python.packages.get_package_share_directory('joy'),
         'config')
     param_config = os.path.join(config_directory, 'joy-params.yaml')
-    with open(param_config, 'r') as f:
+    with pathlib.Path(param_config).open() as f:
         params = yaml.safe_load(f)['joy_node']['ros__parameters']
 
     container = ComposableNodeContainer(

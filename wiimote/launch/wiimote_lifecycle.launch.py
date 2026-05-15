@@ -14,13 +14,11 @@
 
 
 import launch
+import launch_ros
+import lifecycle_msgs.msg
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration, PythonExpression
-
-import launch_ros
 from launch_ros.substitutions import FindPackageShare
-
-import lifecycle_msgs.msg
 
 
 def generate_launch_description():

@@ -31,24 +31,20 @@
 #  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
 
-from __future__ import print_function
-from bluetooth import *
 import select
-import fcntl
-import os
-import struct
-import time
-import sys
-import traceback
-import threading
-import ps3joy
-import socket
 import signal
+import socket
+import struct
+import threading
+import time
+
+import ps3joy
+from bluetooth import *
 
 
 def mk_in_socket():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("127.0.0.1", 0))
+    sock.bind(('127.0.0.1', 0))
     sock.listen(1)
     return sock, sock.getsockname()[1]
 
@@ -64,7 +60,7 @@ class driversim(threading.Thread):
     def run(self):
         self.cm = ps3joy.connection_manager(ps3joy.decoder())
         self.cm.listen(self.intr, self.ctrl)
-        print("driversim exiting")
+        print('driversim exiting')
 
     def shutdown(self):
         self.cm.shutdown = True
@@ -73,15 +69,15 @@ class driversim(threading.Thread):
 class joysim(threading.Thread):
     def __init__(self, intr, ctrl):
         threading.Thread.__init__(self)
-        print("Starting joystick simulator on ports", intr, "and", ctrl)
+        print('Starting joystick simulator on ports', intr, 'and', ctrl)
         self.intr = socket.socket()
-        self.intr.connect(("127.0.0.1", intr))
+        self.intr.connect(('127.0.0.1', intr))
         if self.intr == -1:
-            raise "Error creating interrput socket."
+            raise 'Error creating interrput socket.'
         self.ctrl = socket.socket()
-        self.ctrl.connect(("127.0.0.1", ctrl))
+        self.ctrl.connect(('127.0.0.1', ctrl))
         if self.ctrl == -1:
-            raise "Error creating control socket."
+            raise 'Error creating control socket.'
         self.active = False
         self.shutdown = False
         self.start()
@@ -91,36 +87,36 @@ class joysim(threading.Thread):
             (rd, wr, err) = select.select([self.ctrl], [], [], 1)
             if len(rd) == 1:
                 cmd = self.ctrl.recv(128)
-                if cmd == "\x53\xf4\x42\x03\x00\x00":
+                if cmd == '\x53\xf4\x42\x03\x00\x00':
                     self.active = True
-                    print("Got activate command")
+                    print('Got activate command')
                 else:
-                    print("Got unknown command (len=%i)" % len(cmd), end=' ')
+                    print('Got unknown command (len=%i)' % len(cmd), end=' ')
                     time.sleep(1)
                     for c in cmd:
-                        print("%x" % ord(c), end=' ')
+                        print('%x' % ord(c), end=' ')
                     print()
-        print("joyactivate exiting")
+        print('joyactivate exiting')
 
     def publishstate(self, ax, butt):
         if self.active:
             ranges = [255] * 17 + [8191] * 20
             axval = [int((v + 1) * s / 2) for (v, s) in zip(ax, ranges)]
             buttout = []
-            for i in range(0, 2):
+            for i in range(2):
                 newval = 0
-                for j in range(0, 8):
+                for j in range(8):
                     newval = (newval << 1)
                     if butt[i * 8 + j]:
                         newval = newval + 1
                 buttout.append(newval)
-            joy_coding = "!1B2x3B1x4B4x12B15x4H"
+            joy_coding = '!1B2x3B1x4B4x12B15x4H'
             self.intr.send(struct.pack(joy_coding, 161, *(buttout + [0] + axval)))
         else:
-            print("Tried to publish while inactive")
+            print('Tried to publish while inactive')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     def stop_all_threads(a, b):
         exit(0)
 
@@ -155,4 +151,4 @@ if __name__ == "__main__":
         js.publishstate(axes2, buttons2)
         time.sleep(0.01)
 
-    print("main exiting")
+    print('main exiting')
