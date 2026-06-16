@@ -1,0 +1,32 @@
+
+name: Notify Integration Repo
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispatch integration event
+        env:
+          GH_TOKEN: ${{ secrets.CI_TAG_NOTIFIER_INTEGRATION_REPO }}
+        run: |
+          gh api \
+            repos/enabl-tech/remote_fra/dispatches \
+            --method POST \
+            --input - <<EOF
+          {
+            "event_type": "submodule_release",
+            "client_payload": {
+              "repository": "${GITHUB_REPOSITORY#*/}",
+              "tag": "${GITHUB_REF_NAME}"
+            }
+          }
+          EOF
