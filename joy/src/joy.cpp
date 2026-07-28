@@ -407,9 +407,11 @@ void Joy::handleJoyDeviceAdded(const SDL_Event & e)
   // Neither case can be fixed by polling SDL/the kernel harder. An operator who knows a
   // given axis/button's true idle value can configure it here to avoid a misleading value
   // until a real report arrives.
-  bool initials_size_mismatch = !initial_axis_values_.empty() && (num_axes != static_cast<int>(initial_axis_values_.size()));
+  bool initials_size_mismatch = !initial_axis_values_.empty() &&
+    (num_axes != static_cast<int>(initial_axis_values_.size()));
   if (initials_size_mismatch) {
-    RCLCPP_WARN(get_logger(), "Size mismatch in configured initials: %d axes, %zu initial values", num_axes, initial_axis_values_.size());
+    RCLCPP_WARN(get_logger(), "Size mismatch in configured initials: %d axes, %zu initial values",
+      num_axes, initial_axis_values_.size());
   }
   for (int i = 0; i < num_axes; ++i) {
     int16_t state;
