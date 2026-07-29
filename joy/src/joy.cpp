@@ -29,12 +29,15 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <functional>
 #include <future>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <SDL.h>
 
@@ -86,14 +89,17 @@ Joy::Joy(const rclcpp::NodeOptions & options)
     autorepeat_interval_ms_ = 200;
   }
 
-  sticky_buttons_ = this->declare_parameter("sticky_buttons", false);
-
-  autocenter_ = this->declare_parameter("autocenter", 0);
-
-  if (autocenter_ < 0) {
-    autocenter_ = 0;
-  } else if (autocenter_ > 100) {
-    autocenter_ = 100;
+  // Optional per-axis startup initial.
+  // Use NaN (axes) as the "not configured" sentinel
+  initial_axis_values_ = this->declare_parameter(
+    "initial_axis_values", std::vector<double>{});
+  if (!initial_axis_values_.empty()) {
+    for (double axis_value : initial_axis_values_) {
+      if (!std::isnan(axis_value) && (axis_value < -1.0 || axis_value > 1.0)) {
+        throw std::runtime_error(
+                "initial_axis_values entries must be NaN (unconfigured) or within [-1.0, 1.0]");
+      }
+    }
   }
 
   coalesce_interval_ms_ = static_cast<int>(this->declare_parameter("coalesce_interval_ms", 1));
@@ -386,11 +392,36 @@ void Joy::handleJoyDeviceAdded(const SDL_Event & e)
   }
   joy_msg_.axes.resize(num_axes + num_hats * 2);
 
-  // Get the initial state for each of the axes
+
+  // Apply any operator-configured startup initials first, before attempting to read the
+  // real initial state from SDL below. The value SDL/the kernel report at this point can
+  // be wrong or simply unknown, for two related reasons:
+  //   a) Out-of-date cached value: the kernel only updates its cached absolute-axis state
+  //      while a consumer is actively reading the device. If nothing had it open between
+  //      the last read and now, any movement during that window is invisible to the
+  //      kernel, so it reports whatever position was last cached instead of the axis's
+  //      true current position.
+  //   b) No cached value at all: on a fresh connection, the kernel has never received a
+  //      report for that axis and has no history to fall back on, so it falls back to an
+  //      arbitrary/unknown value (typically 0.0) until the axis is physically moved.
+  // Neither case can be fixed by polling SDL/the kernel harder. An operator who knows a
+  // given axis/button's true idle value can configure it here to avoid a misleading value
+  // until a real report arrives.
+  bool initials_size_mismatch = !initial_axis_values_.empty() &&
+    (num_axes != static_cast<int>(initial_axis_values_.size()));
+  if (initials_size_mismatch) {
+    RCLCPP_WARN(
+      get_logger(), "Size mismatch in configured initials: %d axes, %zu initial values",
+      num_axes, initial_axis_values_.size());
+  }
   for (int i = 0; i < num_axes; ++i) {
     int16_t state;
-    if (SDL_JoystickGetAxisInitialState(joystick_, i, &state)) {
-      joy_msg_.axes.at(i) = convertRawAxisValueToROS(state);
+    if (!initials_size_mismatch && !std::isnan(initial_axis_values_.at(i))) {
+      joy_msg_.axes.at(i) = static_cast<float>(initial_axis_values_.at(i));
+    } else {
+      if (SDL_JoystickGetAxisInitialState(joystick_, i, &state)) {
+        joy_msg_.axes.at(i) = convertRawAxisValueToROS(state);
+      }
     }
   }
 

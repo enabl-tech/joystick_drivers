@@ -32,10 +32,12 @@
 
 #include <SDL.h>
 
+#include <cstdint>
 #include <future>
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joy.hpp>
@@ -82,6 +84,7 @@ private:
   rclcpp::Time publish_soon_time_;
   int coalesce_interval_ms_{0};
   std::string dev_name_;
+  std::vector<double> initial_axis_values_;
   std::thread event_thread_;
   std::shared_future<void> future_;
   std::promise<void> exit_signal_;
