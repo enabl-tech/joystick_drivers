@@ -219,6 +219,37 @@ bool Joy::handleJoyAxis(const SDL_Event & e)
   return publish;
 }
 
+bool Joy::resyncAxesFromSdl()
+{
+  // SDL announces an axis through an SDL_JOYAXISMOTION event only after the axis has moved
+  // away from the first value it saw for it; the first reading of an axis is taken as its
+  // "initial value" and updates SDL's internal state silently. A device that starts with
+  // a wrong default and then reports its real state (the Saitek Side Panel Control Deck
+  // starts with every axis at 0 of 0..255, i.e. -32768 in SDL, and sends its real state with
+  // its first report) therefore leaves some axes stale in joy_msg_ while SDL itself already
+  // holds the right values. Copy SDL's current state for the real axes; hats are not touched.
+  // This runs only when SDL's event queue is empty, so the state and the events handled so
+  // far agree and the values cannot flip back to older queued events.
+  if (joystick_ == nullptr) {
+    return false;
+  }
+  const int num_axes = SDL_JoystickNumAxes(joystick_);
+  if (num_axes < 0) {
+    return false;
+  }
+  const size_t n = std::min(static_cast<size_t>(num_axes), joy_msg_.axes.size());
+  bool changed = false;
+  for (size_t i = 0; i < n; ++i) {
+    const float value =
+      convertRawAxisValueToROS(SDL_JoystickGetAxis(joystick_, static_cast<int>(i)));
+    if (value != joy_msg_.axes[i]) {
+      joy_msg_.axes[i] = value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 bool Joy::handleJoyButtonDown(const SDL_Event & e)
 {
   bool publish = false;
@@ -458,6 +489,11 @@ void Joy::eventThread()
       } else {
         RCLCPP_INFO(get_logger(), "Unknown event type %d", e.type);
       }
+    }
+
+    if (success == 0 && resyncAxesFromSdl()) {
+      // An axis changed in SDL's state without an event; publish the corrected message.
+      should_publish = true;
     }
 
     if (!should_publish) {

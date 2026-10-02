@@ -61,6 +61,7 @@ private:
   bool handleJoyButtonDown(const SDL_Event & e);
   bool handleJoyButtonUp(const SDL_Event & e);
   bool handleJoyHatMotion(const SDL_Event & e);
+  bool resyncAxesFromSdl();
   void handleJoyDeviceAdded(const SDL_Event & e);
   void handleJoyDeviceRemoved(const SDL_Event & e);
   float convertRawAxisValueToROS(int16_t val);
