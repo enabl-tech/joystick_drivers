@@ -32,6 +32,7 @@
 
 #include <SDL.h>
 
+#include <chrono>
 #include <future>
 #include <memory>
 #include <string>
@@ -79,6 +80,8 @@ private:
   int autorepeat_interval_ms_{0};
   bool sticky_buttons_{false};
   int autocenter_{0};
+  // When the autocenter force was last sent to the device (see the event loop).
+  std::chrono::steady_clock::time_point autocenter_applied_{};
   bool publish_soon_{false};
   rclcpp::Time publish_soon_time_;
   int coalesce_interval_ms_{0};
