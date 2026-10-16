@@ -26,14 +26,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-// A device that starts with a wrong default on every axis and sends its real state with its
-// first report (the Saitek Side Panel Control Deck: the kernel starts all axes at 0 of 0..255,
-// which SDL reports as -32768) must not leave axes stale in the published Joy message.
-//
-// On that device SDL updated its internal state for most axes without sending an
-// SDL_JOYAXISMOTION event for them, so the event-driven node kept the initial -32768 (+1.0).
-// This test reproduces the missing events deterministically by disabling SDL's axis-motion
-// event type: SDL still tracks the axis state, but the node is never told about it.
+// Axes SDL updates without an SDL_JOYAXISMOTION event must not stay stale in the Joy message
+// (Saitek Side Panel Control Deck). Reproduced by disabling SDL's axis-motion events.
 
 #include <SDL.h>
 
@@ -49,12 +43,20 @@
 
 #include "joy/joy.hpp"
 
+// SDL_JoystickAttachVirtualEx needs SDL 2.24; Ubuntu 22.04 (Humble) ships 2.0.20.
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+
 namespace
 {
 
 constexpr int kNumAxes = 6;
 constexpr int16_t kMinimum = -32768;
 constexpr char kDeviceName[] = "Joy axis resync test device";
+
+bool allEqual(const std::vector<float> & axes, float value)
+{
+  return std::all_of(axes.begin(), axes.end(), [value](float v) {return v == value;});
+}
 
 // Spin until the latest Joy message satisfies the predicate, or the timeout elapses.
 template<typename Pred>
@@ -117,8 +119,7 @@ TEST(JoyAxisResync, AxesFollowSdlStateEvenWhenSdlSendsNoEventForThem)
     ASSERT_TRUE(
       spinUntil(
         executor, axes, [](const std::vector<float> & a) {
-          return a.size() == kNumAxes &&
-                 std::all_of(a.begin(), a.end(), [](float v) {return v == 1.0F;});
+          return a.size() == kNumAxes && allEqual(a, 1.0F);
         },
         std::chrono::seconds(5)));
 
@@ -132,8 +133,7 @@ TEST(JoyAxisResync, AxesFollowSdlStateEvenWhenSdlSendsNoEventForThem)
     EXPECT_TRUE(
       spinUntil(
         executor, axes, [](const std::vector<float> & a) {
-          return a.size() == kNumAxes &&
-                 std::all_of(a.begin(), a.end(), [](float v) {return v == 0.0F;});
+          return a.size() == kNumAxes && allEqual(a, 0.0F);
         },
         std::chrono::seconds(3)))
       << "stale axes in the published Joy message";
@@ -145,3 +145,12 @@ TEST(JoyAxisResync, AxesFollowSdlStateEvenWhenSdlSendsNoEventForThem)
   SDL_JoystickDetachVirtual(index);
   SDL_Quit();
 }
+
+#else
+
+TEST(JoyAxisResync, AxesFollowSdlStateEvenWhenSdlSendsNoEventForThem)
+{
+  GTEST_SKIP() << "needs SDL >= 2.24 for the virtual joystick API";
+}
+
+#endif

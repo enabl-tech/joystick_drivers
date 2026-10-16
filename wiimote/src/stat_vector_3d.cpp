@@ -89,7 +89,7 @@ TVectorDouble StatVector3d::getMeanScaled(double scale)
 
   std::transform(
     mean.begin(), mean.end(), mean.begin(),
-    [scale](double value) { return scale * value; });
+    [scale](double value) {return scale * value;});
 
   return mean;
 }
@@ -137,7 +137,7 @@ TVectorDouble StatVector3d::getVarianceScaled(double scale)
 
   std::transform(
     variance.begin(), variance.end(), variance.begin(),
-    [scale](double value) { return scale * value; });
+    [scale](double value) {return scale * value;});
 
   return variance;
 }
@@ -161,7 +161,7 @@ TVectorDouble StatVector3d::getStandardDeviationScaled(double scale)
 
   std::transform(
     stddev.begin(), stddev.end(), stddev.begin(),
-    [scale](double value) { return scale * value; });
+    [scale](double value) {return scale * value;});
 
   return stddev;
 }

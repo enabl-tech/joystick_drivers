@@ -221,15 +221,8 @@ bool Joy::handleJoyAxis(const SDL_Event & e)
 
 bool Joy::resyncAxesFromSdl()
 {
-  // SDL announces an axis through an SDL_JOYAXISMOTION event only after the axis has moved
-  // away from the first value it saw for it; the first reading of an axis is taken as its
-  // "initial value" and updates SDL's internal state silently. A device that starts with
-  // a wrong default and then reports its real state (the Saitek Side Panel Control Deck
-  // starts with every axis at 0 of 0..255, i.e. -32768 in SDL, and sends its real state with
-  // its first report) therefore leaves some axes stale in joy_msg_ while SDL itself already
-  // holds the right values. Copy SDL's current state for the real axes; hats are not touched.
-  // This runs only when SDL's event queue is empty, so the state and the events handled so
-  // far agree and the values cannot flip back to older queued events.
+  // SDL updates some axes without an SDL_JOYAXISMOTION event (Saitek Side Panel Control Deck
+  // after its first report); copy SDL's state for the real axes. Called on an empty queue only.
   if (joystick_ == nullptr) {
     return false;
   }
