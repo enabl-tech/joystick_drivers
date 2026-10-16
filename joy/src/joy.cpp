@@ -48,6 +48,11 @@
 namespace joy
 {
 
+namespace
+{
+constexpr auto kAutocenterRefresh = std::chrono::seconds(2);
+}  // namespace
+
 Joy::Joy(const rclcpp::NodeOptions & options)
 : rclcpp::Node("joy_node", options)
 {
@@ -419,6 +424,7 @@ void Joy::handleJoyDeviceAdded(const SDL_Event & e)
   }
 
   haptic_ = SDL_HapticOpenFromJoystick(joystick_);
+  autocenter_applied_ = {};  // a (re)opened device gets its autocenter at once
   if (haptic_ != nullptr) {
     if (SDL_HapticRumbleInit(haptic_) < 0) {
       // Failed to init haptic.  Clean up haptic_.
@@ -519,8 +525,13 @@ void Joy::eventThread()
 
     status = future_.wait_for(std::chrono::seconds(0));
 
+    // A device setting: refresh it now and then, not on every pass (floods a G920's HID++ queue).
     if (haptic_ != nullptr && autocenter_) {
-      SDL_HapticSetAutocenter(haptic_, autocenter_);
+      const auto steady_now = std::chrono::steady_clock::now();
+      if (steady_now - autocenter_applied_ >= kAutocenterRefresh) {
+        SDL_HapticSetAutocenter(haptic_, autocenter_);
+        autocenter_applied_ = steady_now;
+      }
     }
   } while (status == std::future_status::timeout);
 }
