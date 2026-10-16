@@ -77,8 +77,12 @@ ament_export_dependencies(
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  find_package(ament_cmake_gtest REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+
+  ament_add_gtest(test_axis_resync test/test_axis_resync.cpp)
+  target_link_libraries(test_axis_resync joy)
 endif()
 
 ament_package()

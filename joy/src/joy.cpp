@@ -219,6 +219,30 @@ bool Joy::handleJoyAxis(const SDL_Event & e)
   return publish;
 }
 
+bool Joy::resyncAxesFromSdl()
+{
+  // SDL updates some axes without an SDL_JOYAXISMOTION event (Saitek Side Panel Control Deck
+  // after its first report); copy SDL's state for the real axes. Called on an empty queue only.
+  if (joystick_ == nullptr) {
+    return false;
+  }
+  const int num_axes = SDL_JoystickNumAxes(joystick_);
+  if (num_axes < 0) {
+    return false;
+  }
+  const size_t n = std::min(static_cast<size_t>(num_axes), joy_msg_.axes.size());
+  bool changed = false;
+  for (size_t i = 0; i < n; ++i) {
+    const float value =
+      convertRawAxisValueToROS(SDL_JoystickGetAxis(joystick_, static_cast<int>(i)));
+    if (value != joy_msg_.axes[i]) {
+      joy_msg_.axes[i] = value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 bool Joy::handleJoyButtonDown(const SDL_Event & e)
 {
   bool publish = false;
@@ -458,6 +482,11 @@ void Joy::eventThread()
       } else {
         RCLCPP_INFO(get_logger(), "Unknown event type %d", e.type);
       }
+    }
+
+    if (success == 0 && resyncAxesFromSdl()) {
+      // An axis changed in SDL's state without an event; publish the corrected message.
+      should_publish = true;
     }
 
     if (!should_publish) {
