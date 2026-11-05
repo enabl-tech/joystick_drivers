@@ -504,15 +504,18 @@ void Joy::eventThread()
       //     a publish to happen.
       //
       // If we are autorepeating and enough time has passed, set should_publish.
+      // A pending change goes out once coalesce_interval_ms has passed since it was first seen.
+      // (Publishing it on the next event regardless sent every second event: a G920 with force
+      // feedback produces ~1000 axis events/s, so ~500 Joy messages/s went to the vehicle.)
       rclcpp::Time now = this->now();
       rclcpp::Duration diff_since_last_publish = now - last_publish;
+      const bool coalesce_due = publish_soon_ &&
+        (now - publish_soon_time_).nanoseconds() >= RCL_MS_TO_NS(coalesce_interval_ms_);
       if ((autorepeat_rate_ > 0.0 &&
         RCL_NS_TO_MS(diff_since_last_publish.nanoseconds()) >= autorepeat_interval_ms_) ||
-        publish_soon_)
+        coalesce_due)
       {
-        last_publish = now;
         should_publish = true;
-        publish_soon_ = false;
       }
     }
 
@@ -521,6 +524,10 @@ void Joy::eventThread()
       joy_msg_.header.stamp = this->now();
 
       pub_->publish(joy_msg_);
+      // Whatever triggered it, this message carries every change so far: restart the autorepeat
+      // interval and drop the pending change.
+      last_publish = joy_msg_.header.stamp;
+      publish_soon_ = false;
     }
 
     status = future_.wait_for(std::chrono::seconds(0));
