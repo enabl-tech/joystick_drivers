@@ -448,6 +448,8 @@ void Joy::handleJoyDeviceRemoved(const SDL_Event & e)
 
   joy_msg_.buttons.resize(0);
   joy_msg_.axes.resize(0);
+  // A change still pending for the removed device must not go out as the next device's state.
+  publish_soon_ = false;
   if (haptic_ != nullptr) {
     SDL_HapticClose(haptic_);
     haptic_ = nullptr;
@@ -504,7 +506,9 @@ void Joy::eventThread()
       //     a publish to happen.
       //
       // If we are autorepeating and enough time has passed, set should_publish.
-      // A pending change goes out once coalesce_interval_ms has passed since it was first seen.
+      // A pending change goes out at the latest once coalesce_interval_ms has passed since it was
+      // first seen; an autorepeat message due before that carries it too (it sends the current
+      // state, as upstream does).
       // (Publishing it on the next event regardless sent every second event: a G920 with force
       // feedback produces ~1000 axis events/s, so ~500 Joy messages/s went to the vehicle.)
       rclcpp::Time now = this->now();
