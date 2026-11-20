@@ -39,13 +39,16 @@ int main()
 {
   // SDL_INIT_GAMECONTROLLER implies SDL_INIT_JOYSTICK
   if (SDL_Init(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) < 0) {
+    // allow-stdio: CLI tool, printing devices to the terminal is its purpose
     fprintf(stderr, "SDL could not be initialized: %s\n", SDL_GetError());
     return 1;
   }
 
+  // allow-stdio: CLI tool, printing devices to the terminal is its purpose
   fprintf(
     stdout,
     "ID : GUID                             : GamePad : Mapped : Joystick Device Name\n");
+  // allow-stdio: CLI tool, printing devices to the terminal is its purpose
   fprintf(
     stdout,
     "-------------------------------------------------------------------------------\n");
@@ -72,6 +75,7 @@ int main()
     char guid_string[33];
     SDL_JoystickGetGUIDString(joystick_guid, guid_string, sizeof(guid_string));
 
+    // allow-stdio: CLI tool, printing devices to the terminal is its purpose
     fprintf(
       stdout, "%2d : %32s : %7s : %6s : %s\n", i, guid_string, is_gamepad, has_mapping_string,
       joystick_name);
